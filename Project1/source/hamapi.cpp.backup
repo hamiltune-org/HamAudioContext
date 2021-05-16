@@ -1,0 +1,160 @@
+#include <stdint.h>
+#include <math.h>
+#include <stdio.h>
+#include <vector>
+
+#include <windows.h>
+#include <combaseapi.h>
+#include <xaudio2.h>
+#include <thread>
+
+bool shouldRun = false;
+
+// XAudio Vars
+WAVEFORMATEXTENSIBLE wfx = {0};
+XAUDIO2_BUFFER buffer = {0};
+IXAudio2* pXAudio2 = nullptr;
+WAVEFORMATEX format;
+
+// Defniitions
+void StartAudioContext();
+HRESULT Initialize();
+void LoadAudioBuffer();
+HRESULT EternityLoop();
+
+class Player sealed
+{
+public:
+    void feedData(std::vector<BYTE> byteArray)
+    {
+        buffer.AudioBytes = byteArray.size();
+        buffer.pAudioData = new byte[byteArray.size()];
+        memcpy((void*)buffer.pAudioData, &byteArray[0], byteArray.size());
+        if (FAILED(hr = SourceVoice->SubmitSourceBuffer(&buffer)))
+            printf("Failed to laod data: %d\n", hr);
+    }
+    Player()
+    {
+        HRESULT hr;
+        if (FAILED(hr = XAudio2Create(&XAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR)))
+            printf("Failed to create xaudio2 : %d\n", hr);
+
+        if (FAILED(hr = XAudio2->CreateMasteringVoice(&MasterVoice)))
+            printf("Failed to create a master voice: %d\n", hr);
+
+        ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
+        wfx.Format.wFormatTag = WAVE_FORMAT_PCM;
+        wfx.Format.nChannels = 1;
+        wfx.Format.nSamplesPerSec = 16000;
+        wfx.Format.nAvgBytesPerSec = 32000;
+        wfx.Format.nBlockAlign = 2;
+        wfx.Format.wBitsPerSample = 16;
+        if (FAILED(hr = XAudio2->CreateSourceVoice(&SourceVoice, (WAVEFORMATEX*)&wfx)))
+            printf("Failed to create a source voice : %d\n", hr);
+        if (FAILED(hr = SourceVoice->Start(0)))
+            printf("Failed to start the source voice : %d\n", hr);
+
+        
+    }
+    ~Player()
+    {
+        MasterVoice->DestroyVoice();
+        SourceVoice->DestroyVoice();
+    }
+private:
+    IXAudio2* XAudio2;
+    IXAudio2MasteringVoice* MasterVoice;
+    IXAudio2SourceVoice* SourceVoice;
+    WAVEFORMATEXTENSIBLE wfx;
+    XAUDIO2_BUFFER buffer;
+    HRESULT hr;
+};
+
+struct audioFormat {
+    uint8_t numChannels;
+    uint32_t numSamples;
+    uint32_t sampleRate;
+};
+ 
+int main()
+{
+    std::thread newThread(StartAudioContext);
+    newThread.join();
+    
+    return 0;
+}
+
+void StartAudioContext() {
+    /*printf("%d\n", Initialize());
+    LoadAudioBuffer();
+    printf("%d\n", EternityLoop());*/
+
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(hr)) printf("Failed to initialize : %d\n", hr);
+
+
+    Player* play = new Player();
+    int len = 2000;
+    std::vector<BYTE> tmp;
+    tmp.resize(len);
+    for (int i = 0; i < len; i++) tmp[i] = (BYTE)50 * (sin(i / 20) + 1);
+    play->feedData(tmp);
+
+    while (true) ;
+}
+
+HRESULT Initialize() {
+    HRESULT hr;
+    
+    hr = CoInitializeEx( nullptr, COINIT_MULTITHREADED );
+    if (FAILED(hr)) return hr;
+
+    // IXAudio2* pXAudio2 = nullptr;
+    if ( FAILED(hr = XAudio2Create( &pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR ) ) ) return hr;
+
+    IXAudio2MasteringVoice* pMasterVoice = nullptr;
+    if ( FAILED(hr = pXAudio2->CreateMasteringVoice( &pMasterVoice ) ) ) return hr;
+
+    return hr;
+}
+
+void LoadAudioBuffer() {
+    // WAVEFORMATEXTENSIBLE wfx = {0};
+    // XAUDIO2_BUFFER buffer = {0};
+
+    ZeroMemory(&wfx, sizeof(WAVEFORMATEXTENSIBLE));
+    wfx.Format.cbSize = 0;
+    wfx.Format.nChannels = 1;
+    wfx.Format.nSamplesPerSec = 44100;
+    wfx.Format.wBitsPerSample = sizeof(buffer.pAudioData[0]);
+    wfx.Format.nBlockAlign = wfx.Format.nChannels * wfx.Format.wBitsPerSample / 8;
+    wfx.Format.nAvgBytesPerSec = wfx.Format.nSamplesPerSec * wfx.Format.nBlockAlign;
+    wfx.Format.wFormatTag = WAVE_FORMAT_PCM;
+
+    BYTE * pDataBuffer = new BYTE[512];
+    for (int i = 0; i < 512; i++) pDataBuffer[i] = (BYTE) 127 * sin(i / 20);
+
+    // Size in bytes
+    buffer.AudioBytes = 512;
+    buffer.pAudioData = pDataBuffer;
+    buffer.Flags = XAUDIO2_END_OF_STREAM;
+}
+
+HRESULT EternityLoop() {
+    HRESULT hr;
+
+    IXAudio2SourceVoice* pSourceVoice;
+    if( FAILED(hr = pXAudio2->CreateSourceVoice( &pSourceVoice, (WAVEFORMATEX*)&wfx) ) ) return hr;
+    printf("%d\n", 69);
+    if( FAILED(hr = pSourceVoice->SubmitSourceBuffer( &buffer ) ) ) return hr;
+    printf("%d\n", 420);
+    while (true) {
+        if (FAILED(hr = pSourceVoice->Start(0))) return hr;
+
+        Sleep(100);
+    }
+
+    shouldRun = true;
+
+    return hr;
+}
