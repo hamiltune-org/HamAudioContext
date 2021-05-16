@@ -1,0 +1,7 @@
+﻿  hamaudioctx.cpp
+C:\Users\User\Desktop\PROJECTS\hamiltune\github\hamapi\Project1\source\hamaudioctx.cpp(18,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\User\Desktop\PROJECTS\hamiltune\github\hamapi\Project1\source\hamaudioctx.cpp(103,23): warning C4018: '<': signed/unsigned mismatch
+  test.cpp
+  testsine.cpp
+  Generating Code...
+  Project1.vcxproj -> C:\Users\User\Desktop\PROJECTS\hamiltune\github\hamapi\Project1\Debug\Project1.exe
